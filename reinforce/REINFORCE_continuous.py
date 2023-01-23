@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributions import Normal
+torch.set_default_dtype(torch.float64)
 
 
 class REINFORCE:
@@ -15,8 +16,8 @@ class REINFORCE:
     Implementation of the basic online reinforce algorithm for Gaussian policies.
     '''
 
-    def __init__(self, num_inputs, hidden_size, action_space, lr_pi = 3e-4,\
-                 lr_vf = 1e-3, baseline = False, gamma = 0.99, train_v_iters = 1):
+    def __init__(self, num_inputs, hidden_size, action_space, lr_pi = 3e-6,\
+                 lr_vf = 1e-5, baseline = False, gamma = 0.99, train_v_iters = 1):
 
         self.gamma = gamma
         self.action_space = action_space
@@ -34,8 +35,9 @@ class REINFORCE:
 
     def select_action(self,state):
 
-        state = torch.from_numpy(state).float().unsqueeze(0) # just to make it a Tensor obj
+        state = torch.from_numpy(state).double().unsqueeze(0) # just to make it a Tensor obj
         # get mean and std
+        # print(state.dtype)
         mean, std = self.policy(state)
 
         # create normal distribution
@@ -74,7 +76,7 @@ class REINFORCE:
             R = r + self.gamma * R
             returns.insert(0, R)
 
-        returns = torch.tensor(returns)
+        returns = torch.tensor(returns, dtype = torch.float64)
 
         # train the Value Network and calculate Advantage
         if self.baseline:
@@ -84,10 +86,11 @@ class REINFORCE:
                 # calculate loss of value function using mean squared error
                 value_estimates = []
                 for state in states:
-                    state = torch.from_numpy(state).float().unsqueeze(0) # just to make it a Tensor obj
+                    state = torch.from_numpy(state).double().unsqueeze(0) # just to make it a Tensor obj
                     value_estimates.append( self.value_function(state) )
 
                 value_estimates = torch.stack(value_estimates).squeeze() # rewards to go for each step of env trajectory
+
 
                 v_loss = F.mse_loss(value_estimates, returns)
                 # update the weights
